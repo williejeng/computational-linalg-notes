@@ -1,7 +1,7 @@
 # Computational Linear Algebra - Lecture Notes
 
 https://github.com/fastai/numerical-linear-algebra/tree/master
-https://www.stat.uchicago.edu/~lekheng/courses/309/books/Trefethen-Bau.pdf
+[Textbook (Trefethen)](https://www.stat.uchicago.edu/~lekheng/courses/309/books/Trefethen-Bau.pdf) 
 
 ## Lecture 1 (2024-12-21)
 
@@ -233,10 +233,10 @@ https://www.stat.uchicago.edu/~lekheng/courses/309/books/Trefethen-Bau.pdf
 	- compressed sparse column (CSC)
 
 ___
-## Lecture 7
+## Lecture 7 (12-27-2024)
 
 ---
-##  Lecture 8
+##  Lecture 8 (12-28-2024)
 
 ### Linear Regression
 - Consider $X\beta = y$, where $X$ has more rows than columns (more data samples than variables)
@@ -252,3 +252,108 @@ ___
 - Add noise to the data
 - Huber loss: less sensitive to outliers than squared error loss
 	- quadratic for small error values, linear for large values
+
+### Implementing Lineaer Regression
+- `scikit.learn`
+	- `scipy.linalg.lstqr`
+		- LAPACK drivers:
+			- `gelsd`: SVD, divide and conquer (default)
+			- `gelsy`: QR factorization (can be faster)
+			- `gelss`: SVD (used historically)
+	- sparse version: `lsqr`
+		- Uses Golub and Kahan bidiagonalization
+- Naive solution: find $\hat{x}$ that minimizes $\Vert A\hat{x} - b \Vert_2$
+	- find where $b$ is closest to the subspace spanned by $A$ (range of $A$)
+		- projection of $b$ onto $A$
+	- since $b-A\hat{x}$ must be perpendicular to the range of $A$, $A^T (b-A\hat{x}) = 0$ 
+		- normal equations: $\hat{x} = (A^TA)^{-1}A^Tb$ 
+		- If $A$ has full rank, then $(A^TA)^{-1}A^T$ is a square, hermitian positive definite matrix
+			- 
+			- can use Cholesky factorization
+- Cholesky factorization: finds upper triangular $R$ s.t. $A^TA = R^TR$
+	- Algorithm 11.1 from Trefethen
+		- numpy and scipy give different upper/lower for Cholesky
+	- $A^TAx = A^Tb \Rightarrow R^TRx=A^Tb \Rightarrow R^Tw=A^Tb \Rightarrow Rx=w$ 
+		- solving linear system of equations for upper triangular matrix is easier
+			- `scipy.linalg.solve_triangular`
+- QR decomposition:
+	- $Q$: orthonormal, $R$: upper triangular
+	- $Ax=b \Rightarrow QRx = b \Rightarrow Rx = Q^Tb$ 
+- SVD:  $Ax=b \Rightarrow U\Sigma Vx = b \Rightarrow \Sigma Vx=U^Tb \Rightarrow \Sigma w = U^Tb \Rightarrow x = V^Tw$ 
+- Random Sketching Technique for Least Squares Regression
+	1. Sample a $r\times n$ random matrix $S$, $r << n$
+	2. Compute $SA, Sb$
+	3. Find exact solution $x$ to regression $SA x = Sb$
+	- https://www.cs.cmu.edu/afs/cs/user/dwoodruf/www/teaching/15859-fall19/scribe2.pdf
+
+### Conditioning & stability
+- Condition number: how small changes to the input cause the output to change
+	- relative condition number: $\kappa = \sup_{\delta x} \frac{\Vert\delta f\Vert}{\Vert f(x)\Vert} / \frac{\Vert\delta x\Vert}{\Vert x\Vert}$ where $\delta x$ is infinitesimal 
+		- $\kappa = 1, 10, 10^2$: problem is well-conditioned, $\kappa = 10^6, 10^{16}$: problem is ill-conditioned
+	- condition number of a matrix: $\Vert A \Vert\Vert A^{-1} \Vert$ 
+		- relates to computing $b$ or $x$ given $A$ and the other variable in $Ax=b$ 
+- conditioning: perturbation behavior of a mathematical problem (eg. least squares)
+	- eg. computing eigenvalues of a non-symmetric matrix: often ill-conditioned
+- stability: perturbation behavior of an algorithm used to solve a problem on a computer (eg. least squares, gaussian elimination)
+
+--- 
+## Lecture 9 (12-28-2024)
+
+### Matrix Inversion is Unstable
+- eg. Hilbert matrix: $A_{ij} = \frac{1}{i+j+1}$ 
+	- $AA^{-1}$ should be $I$, does not get that in numpy
+	- large condition number ($10^{17}$) 
+- Solution: use other methods beside normal equation (QR, SVD, `lstqr`)
+- Even if $A$ is sparse, $A^{-1}$ is generally dense: shouldn't take inverse
+
+### LR runtimes
+- Matrix inversion: $2n^3$
+- Matrix Multiplication: $n^3$
+- Cholesky: $\frac{1}{3}n^3 + 2n^2 \approx \frac{1}{3}n^3$
+- QR, Gram Schmidt: $2mn^2, m \geq n$
+- QR, Householder: $2mn^2 - \frac{2}{3}n^3$
+- Solving triangular system: $n^2$
+- Cholesky is fastest when it works (symmetric positive definite matrices), but is unstable for matrices with high condition numbers or low-rank)
+- LR via QR is recommended as the standard method
+
+### Additional SVD applications
+- De-biasing Word2Vec word embeddings
+	- Word2Vec: Google library that represents words as vectors
+		- includes bias (eg. father:doctor :: mother:nurse)
+- Data compression
+- trades large number of features for smaller set of better features
+- All matrices are diagonal if you change bases on the domain and range
+
+### SVD vs Eigen Decomposition
+- $A = U\Sigma V^T \Rightarrow Av_j = \sigma_j u_j$ 
+	- generalization of eigen decomposition
+	- eigen decomposition: SVD when $U = V$ ($Av = \lambda v$)
+### Eigen Decomposition
+- $AV = \Lambda V = V \Lambda$,  where $\lambda$ is a diagonal matrix with the eigenvalues
+- Applications
+	- rapid matrix powers
+		- $A^k = (V\Lambda V^{-1})^k = V\Lambda^k V^{-1}$ 
+		- $n^3\log(k)$ naive vs $3n^3 + n$ using eigen decomposition
+	- Markov Chains
+- Hermitian matrix: equal to its own conjugate transpose
+	- All real symmetric matrices are Hermitian
+- If $A$ is symmetric, then eigenvalues are real and $A = Q\Lambda Q^T$, $Q^{-1} = Q^T$
+- If $A$ is triangular, then eigenvalues are equal to its diagonal entries
+
+### Power Method
+- Used by PageRank (Google) to rank importance of websites
+- $n\times n$ matrix $A$ is diagonalizable if it has $n$ linearly independent eigenvectors $v_i$
+	- then any $w$ can be expressed as $\sum^n_{j=1} c_jv_j$ 
+	- $A^kw = \sum_j c_jA^kv_j = \sum_j c_j\lambda_j^kv_j$    
+- Power method:
+	- Normalize each column of $A$
+	- Initialize $S = I$, normalize
+	- Iterate:
+		- $S := AS$, normalize
+		- normalize when doing iterative calculations to prevent over/underflowing
+- Many advanced eigenvalue algorithms are variations on the power method
+	- Facebook's `fbpca` for PCA
+- Convergence rate of the power method: ratio of the largest to second largest eigenvalue
+	- Shifts: remove an eigenvalue to speed up convergence
+	- Deflation: finds eigenvalues other than the largest
+
