@@ -30,7 +30,6 @@
 	- since $b-A\hat{x}$ must be perpendicular to the range of $A$, $A^T (b-A\hat{x}) = 0$ 
 		- normal equations: $\hat{x} = (A^TA)^{-1}A^Tb$ 
 		- If $A$ has full rank, then $(A^TA)^{-1}A^T$ is a square, hermitian positive definite matrix
-			- 
 			- can use Cholesky factorization
 - Cholesky factorization: finds upper triangular $R$ s.t. $A^TA = R^TR$
 	- Algorithm 11.1 from Trefethen
